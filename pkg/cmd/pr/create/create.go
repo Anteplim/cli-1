@@ -176,15 +176,11 @@ func createRun(opts *CreateOptions) (err error) {
 		return fmt.Errorf("could not compute title or body defaults: %w", defaultsErr)
 	}
 
-	if opts.TitleProvided {
-		state.Title = opts.Title
-	}
-
-	if opts.BodyProvided {
-		state.Body = opts.Body
-	}
-
 	if opts.WebMode {
+		if !opts.Autofill {
+			state.Title = opts.Title
+			state.Body = opts.Body
+		}
 		err := handlePush(*opts, *ctx)
 		if err != nil {
 			return err
@@ -192,8 +188,12 @@ func createRun(opts *CreateOptions) (err error) {
 		return previewPR(*opts, *ctx, state)
 	}
 
-	if opts.Autofill || !opts.Interactive {
-		return submitPR(*opts, *ctx, state)
+	if opts.TitleProvided {
+		state.Title = opts.Title
+	}
+
+	if opts.BodyProvided {
+		state.Body = opts.Body
 	}
 
 	existingPR, err := api.PullRequestForBranch(
@@ -205,6 +205,10 @@ func createRun(opts *CreateOptions) (err error) {
 	if err == nil {
 		return fmt.Errorf("a pull request for branch %q into branch %q already exists:\n%s",
 			ctx.HeadBranchLabel, ctx.BaseBranch, existingPR.URL)
+	}
+
+	if opts.Autofill || !opts.Interactive {
+		return submitPR(*opts, *ctx, state)
 	}
 
 	message := "\nCreating pull request for %s into %s in %s\n\n"
